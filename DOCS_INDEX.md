@@ -39,6 +39,13 @@
 | **[DIAGRAMS.md](DIAGRAMS.md)** | Diagramas de arquitetura e fluxo | Quer entender arquitetura |
 | **[README.md](README.md)** | Documentação geral do projeto | Quer visão geral |
 
+### 🔒 Segurança e Autenticação
+
+| Documento | Descrição | Quando Ler |
+|-----------|-----------|------------|
+| **[AUTH_ANALYSIS.md](AUTH_ANALYSIS.md)** | Análise completa de autenticação | Implementar auth |
+| **[ARCHITECTURE_ANALYSIS.md](ARCHITECTURE_ANALYSIS.md)** | Análise arquitetural | Entender estrutura |
+
 ### 🎓 Avançado (Deploy/Produção)
 
 | Documento | Descrição | Quando Ler |
@@ -113,6 +120,9 @@
 ### "Encontrei um erro"
 → `DEBUGGING_REPORT.md` (seção Troubleshooting)
 
+### "Quero implementar autenticação"
+→ `AUTH_ANALYSIS.md` (análise + blueprint completo)
+
 ### "Quero entender a arquitetura"
 → `DIAGRAMS.md` + `EXECUTIVE_SUMMARY.md`
 
@@ -131,9 +141,10 @@
 | Guias de setup | 3 | ~15 |
 | Scripts batch | 4 | N/A |
 | Scripts Python | 5 | N/A |
-| Documentação técnica | 5 | ~30 |
+| Documentação técnica | 6 | ~45 |
+| Segurança/Auth | 1 | ~15 |
 | Diagramas e fluxos | 1 | ~8 |
-| **TOTAL** | **18 arquivos** | **~53 páginas** |
+| **TOTAL** | **20 arquivos** | **~83 páginas** |
 
 ---
 
@@ -262,8 +273,8 @@ Sugestões de melhoria?
 
 ---
 
-**Última atualização:** 19/11/2025  
-**Versão da documentação:** 1.0  
+**Última atualização:** 26/11/2025  
+**Versão da documentação:** 1.1  
 **Status:** Completa e testada ✅
 
 ---
