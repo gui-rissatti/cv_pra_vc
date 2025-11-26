@@ -1,6 +1,7 @@
 """User SQLAlchemy model."""
 from __future__ import annotations
 
+import uuid as uuid_module
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -22,7 +23,7 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id: Mapped[UUID] = mapped_column(
+    id: Mapped[uuid_module.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,

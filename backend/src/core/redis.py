@@ -1,8 +1,6 @@
 """Redis connection utilities."""
 from __future__ import annotations
 
-from typing import Any
-
 import redis.asyncio as aioredis
 from redis.asyncio import Redis
 
@@ -10,7 +8,7 @@ from redis.asyncio import Redis
 _redis_client: Redis[str] | None = None
 
 
-async def get_redis(redis_url: str) -> Redis[Any]:
+async def get_redis(redis_url: str) -> Redis[str]:
     """Get or create Redis client."""
     global _redis_client
     if _redis_client is None:
