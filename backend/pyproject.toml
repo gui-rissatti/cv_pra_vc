@@ -17,7 +17,12 @@ select = ["E", "F", "I", "UP", "B", "S", "ASYNC"]
 ignore = ["E203"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["S101"]
+"tests/**/*" = ["S101", "S105", "S106"]
+# SQLAlchemy models require quoted forward references to avoid circular imports
+"src/models/*" = ["UP037"]
+# Token type "bearer" is a standard OAuth2 value, not a password
+"src/auth/*" = ["S105", "S106"]
+"src/api/routes/auth.py" = ["S105", "S106"]
 
 [tool.mypy]
 python_version = "3.12"

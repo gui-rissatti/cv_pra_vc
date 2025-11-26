@@ -38,6 +38,18 @@ class Settings(BaseSettings):
     langchain_api_key: str | None = None
     langchain_project: str | None = None
 
+    # Database
+    database_url: str | None = None
+
+    # Redis
+    redis_url: str | None = None
+
+    # JWT Settings
+    jwt_secret_key: str | None = None
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 7
+
     model_config = SettingsConfigDict(
         env_file=str(_ENV_FILE),
         env_file_encoding="utf-8",
