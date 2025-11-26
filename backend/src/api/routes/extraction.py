@@ -11,6 +11,7 @@ from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
 
 from agents import ExtractionAgent, ExtractionAgentError
 from core.config import get_settings
+from core.llm_provider import get_llm_provider
 from core.rate_limit import limiter
 from core.validators import ValidationError as JobValidationError
 from services.scraper import (
@@ -64,7 +65,8 @@ def _scraper_singleton() -> WebScraperService:
 
 @lru_cache(maxsize=1)
 def _extraction_agent_singleton() -> ExtractionAgent:
-    return ExtractionAgent()
+    llm_provider = get_llm_provider("gemini")
+    return ExtractionAgent(llm_provider=llm_provider)
 
 
 def get_scraper_service() -> WebScraperService:

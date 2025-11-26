@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Job, GeneratedAssets, ApplicationHistoryEntry } from '../types'
-import { apiService } from '../services/api'
+import { applicationService } from '../services/application.service'
 import { dbService } from '../services/db'
 
 interface AppState {
@@ -44,7 +44,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   processUrl: async (url: string) => {
     const { cvText, language, tone, variance } = get()
-    
+
     if (!cvText.trim()) {
       set({ error: 'Por favor, insira o texto do seu currículo antes de continuar.' })
       return
@@ -53,18 +53,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isLoading: true, error: null, job: null, assets: null })
 
     try {
-      // Step 1: Extract Job Details
-      const job = await apiService.extractJobDetails(url)
-      set({ job })
+      // Use the application service for orchestration
+      const result = await applicationService.processJobUrl(url, cvText, {
+        language,
+        tone,
+        variance,
+      })
 
-      // Step 2: Generate Materials
-      const assets = await apiService.generateMaterials(job, cvText, { language, tone, variance })
-      set({ assets })
-
-      // Step 3: Save to History
-      await dbService.saveApplication(job, assets)
+      set({ job: result.job, assets: result.assets })
       await get().loadHistory()
-      
     } catch (err: any) {
       console.error(err)
       set({ error: err.response?.data?.message || 'Ocorreu um erro ao processar sua solicitação.' })

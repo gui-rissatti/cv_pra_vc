@@ -8,16 +8,11 @@ from typing import Iterable
 import structlog
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableSerializable
 from pydantic import BaseModel, Field
 
+from core.llm_provider import LLMProvider, get_llm_provider
 from core.validators import JobValidator, ValidationError
 from services.scraper import ScrapedJob
-
-try:  # pragma: no cover - optional dependency wiring
-    from langchain_google_genai import ChatGoogleGenerativeAI  # type: ignore
-except Exception:  # pragma: no cover - module might be unavailable in tests
-    ChatGoogleGenerativeAI = None  # type: ignore[misc]
 
 
 LOGGER = structlog.get_logger(__name__)
@@ -44,33 +39,51 @@ class ExtractionAgentError(RuntimeError):
 
 
 class ExtractionAgent:
-    """Pipeline that feeds scraped HTML/content into a Gemini-backed LangChain chain."""
+    """Pipeline that feeds scraped HTML/content into an LLM for extraction."""
 
     def __init__(
         self,
         *,
-        llm: RunnableSerializable | None = None,
+        llm_provider: LLMProvider | None = None,
         validator: JobValidator | None = None,
         model: str = "gemini-2.5-flash",
         temperature: float = 0.2,
         highlight_count: int = 3,
     ) -> None:
+        """
+        Initialize ExtractionAgent.
+
+        Args:
+            llm_provider: LLM provider instance. If None, creates default Gemini provider.
+            validator: Job validator instance. If None, creates default validator.
+            model: Model name (used if creating default provider)
+            temperature: Temperature for LLM generation
+            highlight_count: Number of highlights to extract
+        """
         self._validator = validator or JobValidator()
         self._highlight_count = highlight_count
         self._parser = PydanticOutputParser(pydantic_object=_StructuredJobPayload)
-        self._prompt = self._build_prompt()
-        self._llm = llm or self._build_default_llm(model=model, temperature=temperature)
-        self._chain = self._prompt | self._llm | self._parser
+        self._prompt_template = self._build_prompt()
+        self._llm_provider = llm_provider or get_llm_provider("gemini", model=model)
+        self._temperature = temperature
 
     async def run(self, scraped_job: ScrapedJob) -> ExtractionAgentResult:
         """Normalize a scraped job using the LLM and return merged results."""
 
         LOGGER.debug("extraction_agent.run.start", board=scraped_job.board, url=scraped_job.url)
         validated = self._validated(scraped_job)
-        prompt_input = self._prompt_input(validated)
+        prompt_text = self._build_prompt_text(validated)
+
         try:
-            structured: _StructuredJobPayload = await self._chain.ainvoke(prompt_input)
-        except Exception as exc:  # pragma: no cover - langchain surfaces various runtime errors
+            # Call LLM provider to get structured output
+            llm_response = await self._llm_provider.generate(
+                prompt_text,
+                temperature=self._temperature,
+            )
+            # Parse the LLM response into structured format
+            structured = self._parser.parse(llm_response)
+        except Exception as exc:
+            LOGGER.error("extraction_agent.run.failed", error=str(exc))
             raise ExtractionAgentError("LLM extraction failed") from exc
 
         merged_job = self._merge_payload(validated, structured)
@@ -99,16 +112,8 @@ class ExtractionAgent:
             raw_html=original.raw_html,
         )
 
-    def _prompt_input(self, job: ScrapedJob) -> dict[str, object]:
-        job_dict = asdict(job)
-        return {
-            "job_data": job_dict,
-            "job_html_preview": self._html_preview(job.raw_html),
-            "format_instructions": self._parser.get_format_instructions(),
-            "highlight_count": self._highlight_count,
-        }
-
     def _build_prompt(self) -> ChatPromptTemplate:
+        """Build the LangChain ChatPromptTemplate."""
         return ChatPromptTemplate.from_messages(
             [
                 (
@@ -126,19 +131,25 @@ class ExtractionAgent:
             ]
         )
 
-    def _build_default_llm(self, *, model: str, temperature: float) -> RunnableSerializable:
-        if ChatGoogleGenerativeAI is None:
-            raise ExtractionAgentError(
-                "ChatGoogleGenerativeAI is unavailable. Provide an LLM instance when instantiating ExtractionAgent."
-            )
-        from core.config import get_settings
-        settings = get_settings()
-        return ChatGoogleGenerativeAI(
-            model=model, 
-            temperature=temperature, 
-            convert_system_message_to_human=True,
-            google_api_key=settings.google_api_key
+    def _build_prompt_text(self, job: ScrapedJob) -> str:
+        """Build the full prompt text for LLM."""
+        job_dict = asdict(job)
+        format_instructions = self._parser.get_format_instructions()
+        html_preview = self._html_preview(job.raw_html)
+
+        system_msg = (
+            "You are an expert technical recruiter. Transform scraped job postings into a structured, "
+            "clean summary with consistent casing and deduplicated skills. Only use the provided "
+            "content; never invent employers or titles. Return JSON that matches the provided format instructions."
         )
+
+        human_msg = (
+            f"Job data: {job_dict}\n\nHTML snippet:\n{html_preview}\n\n"
+            f"You must respond with JSON using the following schema instructions:\n{format_instructions}\n"
+            f"Generate up to {self._highlight_count} concise highlights describing the opportunity."
+        )
+
+        return f"{system_msg}\n\n{human_msg}"
 
     @staticmethod
     def _html_preview(html: str, limit: int = 2000) -> str:

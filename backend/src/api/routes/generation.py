@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from agents import GeneratedBundle, GenerationAgent
 from core.config import get_settings
+from core.llm_provider import get_llm_provider
 from core.rate_limit import limiter
 
 router = APIRouter()
@@ -63,7 +64,8 @@ class ErrorResponse(BaseModel):
 
 @lru_cache(maxsize=1)
 def _generation_agent_singleton() -> GenerationAgent:
-    return GenerationAgent()
+    llm_provider = get_llm_provider("gemini")
+    return GenerationAgent(llm_provider=llm_provider)
 
 
 def get_generation_agent() -> GenerationAgent:
