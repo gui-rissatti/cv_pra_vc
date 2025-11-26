@@ -1,6 +1,7 @@
 # Additional testing-only dependencies will be listed here.
 pytest
 pytest-cov
+pytest-asyncio
 python-dotenv
 pyyaml
 black

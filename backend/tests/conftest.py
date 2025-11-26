@@ -2,16 +2,22 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
 
+# Add src directory to path for imports
+_BACKEND_ROOT = Path(__file__).resolve().parents[1]
+_SRC_DIR = _BACKEND_ROOT / "src"
+if str(_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(_SRC_DIR))
+
 
 def _load_env_file() -> None:
     """Load .env from backend root if present, fallback to environment."""
-    backend_root = Path(__file__).resolve().parents[1]
-    env_file = backend_root / ".env"
+    env_file = _BACKEND_ROOT / ".env"
     if env_file.exists():
         load_dotenv(env_file)
     else:

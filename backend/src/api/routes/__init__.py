@@ -3,10 +3,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, FastAPI
 
-from . import extraction, generation, health, cv_extraction
+from . import auth, cv_extraction, extraction, generation, health
 
 router = APIRouter()
 router.include_router(health.router, tags=["health"])
+router.include_router(auth.router)
 router.include_router(extraction.router)
 router.include_router(generation.router)
 router.include_router(cv_extraction.router)
