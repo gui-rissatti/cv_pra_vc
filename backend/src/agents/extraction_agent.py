@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from core.llm_provider import LLMProvider, get_llm_provider
 from core.validators import JobValidator, ValidationError
+from services.job_normalizer import JobNormalizer
 from services.scraper import ScrapedJob
 
 
@@ -46,6 +47,7 @@ class ExtractionAgent:
         *,
         llm_provider: LLMProvider | None = None,
         validator: JobValidator | None = None,
+        normalizer: JobNormalizer | None = None,
         model: str = "gemini-2.5-flash",
         temperature: float = 0.2,
         highlight_count: int = 3,
@@ -56,11 +58,13 @@ class ExtractionAgent:
         Args:
             llm_provider: LLM provider instance. If None, creates default Gemini provider.
             validator: Job validator instance. If None, creates default validator.
+            normalizer: Job normalizer instance. If None, creates default normalizer.
             model: Model name (used if creating default provider)
             temperature: Temperature for LLM generation
             highlight_count: Number of highlights to extract
         """
         self._validator = validator or JobValidator()
+        self._normalizer = normalizer or JobNormalizer()
         self._highlight_count = highlight_count
         self._parser = PydanticOutputParser(pydantic_object=_StructuredJobPayload)
         self._prompt_template = self._build_prompt()
@@ -86,7 +90,10 @@ class ExtractionAgent:
             LOGGER.error("extraction_agent.run.failed", error=str(exc))
             raise ExtractionAgentError("LLM extraction failed") from exc
 
-        merged_job = self._merge_payload(validated, structured)
+        # Use normalizer to merge and deduplicate
+        merged_job = self._normalizer.merge_with_llm_output(
+            validated, structured.model_dump()
+        )
         final_job = self._validated(merged_job)
         LOGGER.debug("extraction_agent.run.success", board=final_job.board, url=final_job.url)
         return ExtractionAgentResult(job=final_job, highlights=structured.highlights)

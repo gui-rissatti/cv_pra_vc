@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -18,6 +17,8 @@ from prompts import (
     INSIGHTS_PROMPT,
     NETWORKING_PROMPT,
 )
+from services.language_detector import LanguageDetector
+from services.score_extractor import ScoreExtractor
 
 LOGGER = structlog.get_logger(__name__)
 
@@ -41,6 +42,8 @@ class GenerationAgent:
         self,
         *,
         llm_provider: LLMProvider | None = None,
+        language_detector: LanguageDetector | None = None,
+        score_extractor: ScoreExtractor | None = None,
         model: str = "gemini-2.5-flash",
         temperature: float = 0.4,
     ) -> None:
@@ -49,10 +52,14 @@ class GenerationAgent:
 
         Args:
             llm_provider: LLM provider instance. If None, creates default Gemini provider.
+            language_detector: Language detector instance. If None, creates default detector.
+            score_extractor: Score extractor instance. If None, creates default extractor.
             model: Model name (used if creating default provider)
             temperature: Temperature for LLM generation
         """
         self._llm_provider = llm_provider or get_llm_provider("gemini", model=model)
+        self._language_detector = language_detector or LanguageDetector()
+        self._score_extractor = score_extractor or ScoreExtractor()
         self._temperature = temperature
 
     async def generate_all(
@@ -74,9 +81,12 @@ class GenerationAgent:
         )
 
         # Detect language if auto
-        target_language = self._resolve_language(
-            job_data.get("description", ""), language
-        )
+        if language == "auto":
+            target_language = self._language_detector.detect(
+                job_data.get("description", ""), default="en"
+            )
+        else:
+            target_language = language
 
         # Prepare inputs
         inputs = {
@@ -120,7 +130,7 @@ class GenerationAgent:
         )
 
         # Extract score from insights text
-        llm_score = self._extract_score_from_insights(insights_text)
+        llm_score = self._score_extractor.extract(insights_text)
 
         # Fallback to heuristic if extraction fails
         if llm_score == 0:
@@ -151,54 +161,3 @@ class GenerationAgent:
     async def _generate_with_retry(self, prompt: str) -> str:
         """Generate text with retry logic."""
         return await self._llm_provider.generate(prompt, temperature=self._temperature)
-
-    def _extract_score_from_insights(self, insights_text: str) -> int:
-        """Extract compatibility score from formatted insights text."""
-        # Look for patterns like "Compatibilidade: 85/100" or "Compatibility: 85/100"
-        patterns = [
-            r"Compatibilidade:\s*(\d+)/100",
-            r"Compatibility:\s*(\d+)/100",
-            r"Compatibilité:\s*(\d+)/100",
-            r"Compatibilidad:\s*(\d+)/100",
-            r"##\s*\w+:\s*(\d+)/100",  # Generic heading with score
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, insights_text, re.IGNORECASE)
-            if match:
-                score = int(match.group(1))
-                return max(0, min(100, score))  # Clamp to 0-100
-        
-        return 0  # Return 0 if no score found
-
-    def _resolve_language(self, description: str, language: str) -> str:
-        """Detect or return the target language for outputs."""
-        if language != "auto":
-            return language
-
-        # Simple heuristic: check for common words
-        desc_lower = description.lower()
-
-        # Portuguese indicators
-        if any(
-            word in desc_lower
-            for word in ["você", "será", "responsável", "conhecimento", "experiência"]
-        ):
-            return "pt"
-
-        # Spanish indicators
-        if any(
-            word in desc_lower
-            for word in ["usted", "será", "responsable", "conocimiento", "experiencia"]
-        ):
-            return "es"
-
-        # French indicators
-        if any(
-            word in desc_lower
-            for word in ["vous", "serez", "responsable", "connaissance", "expérience"]
-        ):
-            return "fr"
-
-        # Default to English
-        return "en"
