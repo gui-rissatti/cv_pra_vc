@@ -29,7 +29,7 @@ class ExtractionAgentResult:
 
 class _StructuredJobPayload(BaseModel):
     title: str = Field(..., description="Canonical job title")
-    company: str = Field(..., description="Canonical employer name")
+    company: str | None = Field(None, description="Canonical employer name (optional)")
     description: str = Field(..., description="Concise but detailed responsibilities and requirements")
     skills: list[str] = Field(default_factory=list, description="Sorted, deduplicated skills")
     highlights: list[str] = Field(default_factory=list, description="Key bullet points extracted from the posting")
@@ -117,6 +117,7 @@ class ExtractionAgent:
             description=structured.description or original.description,
             skills=deduped_skills,
             raw_html=original.raw_html,
+            company_extraction_method=original.company_extraction_method,
         )
 
     def _build_prompt(self) -> ChatPromptTemplate:

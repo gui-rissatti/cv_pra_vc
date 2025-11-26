@@ -13,11 +13,12 @@ interface AppState {
   isLoading: boolean
   error: string | null
   history: ApplicationHistoryEntry[]
-  
+
   setCvText: (text: string) => void
   setLanguage: (language: string) => void
   setTone: (tone: string) => void
   setVariance: (variance: number) => void
+  updateJobCompany: (newCompany: string) => Promise<void>
   processUrl: (url: string) => Promise<void>
   reset: () => void
   loadHistory: () => Promise<void>
@@ -41,6 +42,30 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLanguage: (language) => set({ language }),
   setTone: (tone) => set({ tone }),
   setVariance: (variance) => set({ variance }),
+
+  updateJobCompany: async (newCompany: string) => {
+    const { job } = get()
+    if (!job) return
+
+    // Update job with new company name
+    const updatedJob = { ...job, company: newCompany }
+    set({ job: updatedJob })
+
+    // Update in IndexedDB if the job has been saved
+    try {
+      const app = await dbService.getApplication(job.id)
+      if (app) {
+        await dbService.saveApplication({
+          ...app,
+          job: updatedJob,
+          companyName: newCompany,
+        })
+        await get().loadHistory()
+      }
+    } catch (error) {
+      console.error('Failed to update company in database:', error)
+    }
+  },
 
   processUrl: async (url: string) => {
     const { cvText, language, tone, variance } = get()

@@ -87,8 +87,9 @@ class JobValidator:
         if not isinstance(job.title, str) or not job.title.strip():
             issues.append(self._issue("syntax", "title", "Title must be a non-empty string", "invalid_title"))
 
-        if not isinstance(job.company, str) or not job.company.strip():
-            issues.append(self._issue("syntax", "company", "Company must be a non-empty string", "invalid_company"))
+        # Company is now optional - only validate if provided
+        if job.company is not None and (not isinstance(job.company, str) or not job.company.strip()):
+            issues.append(self._issue("syntax", "company", "Company must be a non-empty string when provided", "invalid_company"))
 
         if not isinstance(job.description, str) or not job.description.strip():
             issues.append(
@@ -124,16 +125,18 @@ class JobValidator:
         elif not _ALPHA_RE.search(title):
             issues.append(self._issue("semantic", "title", "Title must contain alphabetic characters", "title_requires_alpha"))
 
-        company = job.company.strip()
-        if len(company) < self._min_company_chars or len(company) > self._max_company_chars:
-            issues.append(
-                self._issue(
-                    "semantic",
-                    "company",
-                    f"Company must be between {self._min_company_chars} and {self._max_company_chars} characters",
-                    "company_length_out_of_bounds",
+        # Company is optional - only validate length if provided
+        if job.company is not None:
+            company = job.company.strip()
+            if len(company) < self._min_company_chars or len(company) > self._max_company_chars:
+                issues.append(
+                    self._issue(
+                        "semantic",
+                        "company",
+                        f"Company must be between {self._min_company_chars} and {self._max_company_chars} characters",
+                        "company_length_out_of_bounds",
+                    )
                 )
-            )
 
         description = job.description.strip()
         if len(description) < self._min_description_chars:
@@ -198,7 +201,7 @@ class JobValidator:
         """Return a sanitized copy of the job for downstream layers."""
 
         clean_title = job.title.strip()
-        clean_company = job.company.strip()
+        clean_company = job.company.strip() if job.company is not None else None
         clean_description = job.description.strip()
         cleaned_skills = self._dedupe(skill.strip() for skill in job.skills if isinstance(skill, str))
         cleaned_skills = [skill for skill in cleaned_skills if skill]
@@ -211,6 +214,7 @@ class JobValidator:
             description=clean_description,
             skills=cleaned_skills,
             raw_html=job.raw_html,
+            company_extraction_method=job.company_extraction_method,
         )
 
     @staticmethod

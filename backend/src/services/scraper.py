@@ -6,7 +6,13 @@ from typing import Callable, Iterable
 from urllib.parse import urlparse
 
 import httpx
+import structlog
 from bs4 import BeautifulSoup
+
+from services.company_fallback import CompanyNameFallbackService
+
+
+LOGGER = structlog.get_logger(__name__)
 
 
 __all__ = [
@@ -26,10 +32,11 @@ class ScrapedJob:
     url: str
     board: str
     title: str
-    company: str
+    company: str | None
     description: str
     skills: list[str]
     raw_html: str
+    company_extraction_method: str | None = None
 
 
 class ScraperError(RuntimeError):
@@ -51,9 +58,16 @@ class ParseError(ScraperError):
 class WebScraperService:
     """Scrape job postings from supported job boards using HTTPX + BeautifulSoup."""
 
-    def __init__(self, *, client: httpx.AsyncClient | None = None, timeout: float = 15.0) -> None:
+    def __init__(
+        self,
+        *,
+        client: httpx.AsyncClient | None = None,
+        timeout: float = 15.0,
+        company_fallback: CompanyNameFallbackService | None = None,
+    ) -> None:
         self._client = client
         self._timeout = timeout
+        self._company_fallback = company_fallback or CompanyNameFallbackService()
         self._parsers: dict[str, Callable[[str, str, str], ScrapedJob]] = {
             "linkedin": self._parse_linkedin,
             "gupy": self._parse_gupy,
@@ -186,18 +200,34 @@ class WebScraperService:
     ) -> ScrapedJob:
         if not title:
             raise ParseError("Job title not found in document")
-        if not company:
-            raise ParseError("Company name not found in document")
         if not description:
             raise ParseError("Job description not found in document")
+
+        # Apply fallback strategies for company name
+        company_result = self._company_fallback.extract_company(
+            scraped_company=company,
+            html=raw_html,
+            url=url,
+            description=description,
+        )
+
+        LOGGER.info(
+            "scraper.company_extraction",
+            url=url[:100],
+            method=company_result.method,
+            confidence=company_result.confidence,
+            found=bool(company_result.company),
+        )
+
         return ScrapedJob(
             url=url,
             board=board,
             title=title,
-            company=company,
+            company=company_result.company,
             description=description,
             skills=skills,
             raw_html=raw_html,
+            company_extraction_method=f"{company_result.method}:{company_result.confidence}",
         )
 
     def _first_text(self, soup: BeautifulSoup, selectors: Iterable[str]) -> str | None:

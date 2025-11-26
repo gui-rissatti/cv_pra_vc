@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git push:*)",
+      "Bash(npm install)",
+      "Bash(python -m py_compile:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(python:*)",
+      "Bash(PYTHONPATH=src python:*)",
+      "Bash(PYTHONIOENCODING=utf-8 python:*)",
+      "Bash(if exist .venv echo [OK] Python venv encontrado else echo [ERRO] Python venv nao encontrado)",
+      "Bash(node --version)",
+      "Bash(npm --version:*)",
+      "Bash(validate_startup.bat)",
+      "Bash(.venvScriptspython.exe -m pip list)",
+      "Bash(\".venv/Scripts/pip.exe\" install -q -r requirements.txt)",
+      "Bash(\".venv/Scripts/pip.exe\" install -r requirements.txt)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/ -v --tb=short)",
+      "Bash(.venv/Scripts/pip.exe install:*)",
+      "Bash(.venv/Scripts/python.exe:*)",
+      "Bash(npm run build)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

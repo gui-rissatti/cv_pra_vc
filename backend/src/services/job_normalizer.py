@@ -45,6 +45,7 @@ class JobNormalizer:
             description=llm_output.get("description") or original.description,
             skills=deduped_skills,
             raw_html=original.raw_html,
+            company_extraction_method=original.company_extraction_method,
         )
 
         LOGGER.debug(

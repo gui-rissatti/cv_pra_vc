@@ -39,7 +39,7 @@ class JobResponse(BaseModel):
     id: str = Field(..., description="Stable identifier derived from the job URL", example="9a1b2c3d4e5f")
     url: AnyHttpUrl = Field(..., description="Original job posting URL")
     title: str = Field(..., description="Canonical job title after normalization")
-    company: str = Field(..., description="Employer name extracted from the posting")
+    company: str | None = Field(None, description="Employer name extracted from the posting (may be null if not found)")
     description: str = Field(..., description="Detailed description of the opportunity")
     skills: list[str] = Field(default_factory=list, description="Distinct list of skills mentioned")
     created_at: datetime = Field(
@@ -47,6 +47,11 @@ class JobResponse(BaseModel):
         alias="createdAt",
         description="Timestamp of when the job was processed",
         example="2025-11-19T10:00:00Z",
+    )
+    extraction_metadata: dict[str, str] = Field(
+        default_factory=dict,
+        alias="extractionMetadata",
+        description="Metadata about the extraction process (e.g., company extraction method)",
     )
 
 
@@ -95,6 +100,12 @@ def _job_identifier(url: str) -> str:
 
 
 def _job_response(job: ScrapedJob) -> JobResponse:
+    metadata = {}
+    if job.company_extraction_method:
+        method, confidence = job.company_extraction_method.split(":", 1)
+        metadata["companyExtractionMethod"] = method
+        metadata["companyExtractionConfidence"] = confidence
+
     return JobResponse(
         id=_job_identifier(job.url),
         url=job.url,
@@ -103,6 +114,7 @@ def _job_response(job: ScrapedJob) -> JobResponse:
         description=job.description,
         skills=list(job.skills),
         created_at=datetime.now(timezone.utc),
+        extraction_metadata=metadata,
     )
 
 

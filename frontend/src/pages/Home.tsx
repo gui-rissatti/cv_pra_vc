@@ -1,15 +1,17 @@
 import { InputSection } from '../components/InputSection'
 import { OutputSection } from '../components/OutputSection'
 import { HistorySidebar } from '../components/HistorySidebar'
+import { JobDetailsCard } from '../components/JobDetailsCard'
 import { useAppStore } from '../store/useAppStore'
 
 export function HomePage() {
-  const { 
-    processUrl, 
-    isLoading, 
-    error, 
-    assets, 
-    cvText, 
+  const {
+    processUrl,
+    isLoading,
+    error,
+    job,
+    assets,
+    cvText,
     setCvText,
     language,
     setLanguage,
@@ -17,7 +19,8 @@ export function HomePage() {
     setTone,
     variance,
     setVariance,
-    history
+    history,
+    updateJobCompany
   } = useAppStore()
 
   return (
@@ -37,9 +40,9 @@ export function HomePage() {
             apresentação, rede de contatos e dicas práticas — tudo em um único fluxo.
           </p>
           
-          <InputSection 
-            onSubmit={processUrl} 
-            isLoading={isLoading} 
+          <InputSection
+            onSubmit={processUrl}
+            isLoading={isLoading}
             error={error}
             cvText={cvText}
             onCvChange={setCvText}
@@ -50,6 +53,8 @@ export function HomePage() {
             variance={variance}
             onVarianceChange={setVariance}
           />
+
+          {job && <JobDetailsCard job={job} onCompanyUpdate={updateJobCompany} />}
 
           {assets && <OutputSection assets={assets} />}
           
